@@ -26,7 +26,7 @@ By default, Kismatic will install its own repos onto machines and use them to do
 1. Add the Kismatic repo to the machine
    1. Add the Kismatic public key to apt
 
-`wget -qO - https://bintray.com/user/downloadSubjectPublicKey?username=apprenda | sudo apt-key add - `
+`wget -qO - https://bintray.com/user/downloadSubjectPublicKey?username=apprenda | sudo apt-key add -`
 
    2. Add the Kismatic repo
 
