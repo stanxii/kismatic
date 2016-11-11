@@ -16,11 +16,9 @@
     apt_key:
       url: "{{ deb_gpg_key_url }}"
       id: "4C708F2F"
-      validate_certs: no
   - name: add Kismatic deb repository
     apt_repository:
       repo: 'deb {{ deb_repository_url }} xenial main'
-      validate_certs: no
   - name: apt-get update
     apt:
       update_cache: yes
