@@ -52,7 +52,7 @@
 
   # install DEB packages
   - name: install etcd deb package
-    apt: name=kismatic-etcd={{ kismatic_kubernetes_etcd_apt_version }} state=present allow_unauthenticated=true
+    apt: name=kismatic-etcd={{ kismatic_kubernetes_etcd_apt_version }} state=present
     when: "'etcd' in group_names"
     register: result
     until: result|success
@@ -60,7 +60,7 @@
     delay: 3
 
   - name: install kubernetes master deb package
-    apt: name=kismatic-kubernetes-master={{ kismatic_kubernetes_master_apt_version }} state=present allow_unauthenticated=true
+    apt: name=kismatic-kubernetes-master={{ kismatic_kubernetes_master_apt_version }} state=present
     when: "'master' in group_names"
     register: result
     until: result|success
@@ -68,7 +68,7 @@
     delay: 3
 
   - name: install kubernetes worker deb package
-    apt: name=kismatic-kubernetes-node={{ kismatic_kubernetes_node_apt_version }} state=present allow_unauthenticated=true
+    apt: name=kismatic-kubernetes-node={{ kismatic_kubernetes_node_apt_version }} state=present
     when: "'worker' in group_names and 'master' not in group_names and 'etcd' not in group_names"
     register: result
     until: result|success
