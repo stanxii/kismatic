@@ -18,9 +18,6 @@
       - add Kismatic deb repository
       - add Kismatic deb key
       - apt-get update
-      - install etcd deb package
-      - install kubernetes master deb package
-      - install kubernetes worker deb package
     when: ansible_distribution == 'Ubuntu'
     ignore_errors: yes
     register: result

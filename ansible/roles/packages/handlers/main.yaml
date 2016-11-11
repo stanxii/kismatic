@@ -12,14 +12,14 @@
 
   - name: install apt-transport-https package
     package: name=apt-transport-https state=latest
-  - name: add Kismatic deb repository
-    apt_repository:
-      repo: 'deb {{ deb_repository_url }} xenial main'
-      validate_certs: no
   - name: add Kismatic deb key
     apt_key:
       url: "{{ deb_gpg_key_url }}"
       id: "4C708F2F"
+      validate_certs: no
+  - name: add Kismatic deb repository
+    apt_repository:
+      repo: 'deb {{ deb_repository_url }} xenial main'
       validate_certs: no
   - name: apt-get update
     apt:
