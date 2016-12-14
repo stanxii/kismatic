@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
 )
@@ -264,14 +265,7 @@ func TestNodeCertExistsSkipGeneration(t *testing.T) {
 
 	// Create the node cert and key file
 	certFile := filepath.Join(pki.GeneratedCertsDirectory, node.Host+".pem")
-	if _, err := os.Create(certFile); err != nil {
-		t.Fatalf("error creating dummy cert file: %v", err)
-	}
 	keyFile := filepath.Join(pki.GeneratedCertsDirectory, node.Host+"-key.pem")
-	if _, err := os.Create(keyFile); err != nil {
-		t.Fatalf("error creating dummy key file: %v", err)
-	}
-
 	ca, err := pki.GenerateClusterCA(p)
 	if err != nil {
 		t.Fatalf("error generating CA for test: %v", err)
@@ -281,20 +275,27 @@ func TestNodeCertExistsSkipGeneration(t *testing.T) {
 		t.Fatalf("failed to generate certs: %v", err)
 	}
 
+	// try to generate again
+	time := time.Now()
+	if err = pki.GenerateClusterCertificates(p, ca, users); err != nil {
+		t.Fatalf("failed to generate certs: %v", err)
+	}
+
 	// Assert cert and key were not regenerated
-	cert, err := ioutil.ReadFile(certFile)
+	cert, err := os.Stat(certFile)
 	if err != nil {
 		t.Fatalf("error reading cert file:%v", err)
 	}
-	if len(cert) != 0 {
-		t.Error("dummy cert file was modified")
+	if cert.ModTime().After(time) {
+		t.Error("cert file was modified")
 	}
-	key, err := ioutil.ReadFile(keyFile)
+
+	key, err := os.Stat(keyFile)
 	if err != nil {
-		t.Fatalf("error reading key file: %v", err)
+		t.Fatalf("error reading key file:%v", err)
 	}
-	if len(key) != 0 {
-		t.Error("dummy key file was modified")
+	if key.ModTime().After(time) {
+		t.Error("key file was modified")
 	}
 
 	// Assert no other files were created

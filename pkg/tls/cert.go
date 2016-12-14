@@ -111,6 +111,48 @@ func CertKeyPairExists(name, dir string) (bool, error) {
 	return true, nil
 }
 
+// CertKeyPairExistsAndValid returns true if a key and matching certificate exist.
+// Matching is defined as having the expected file names and IP Addresse(s)
+func CertKeyPairExistsAndValid(CN string, SANs []string, name, dir string) (valid bool, warn []error, err error) {
+	// check if exists and return if doesn't or error
+	exists, errExists := CertKeyPairExists(name, dir)
+	if !exists || errExists != nil {
+		return exists, nil, errExists
+	}
+
+	// read the certificate file
+	certBytes, err := ioutil.ReadFile(filepath.Join(dir, certName(name)))
+	if err != nil {
+		return false, nil, fmt.Errorf("error reding cert %s: %v", name, err)
+	}
+
+	// verify certificate
+	cert, err := helpers.ParseCertificatePEM(certBytes)
+	if err != nil {
+		return false, nil, fmt.Errorf("error parsing cert %s: %v", name, err)
+	}
+
+	if cert.Subject.CommonName != CN {
+		return false, []error{fmt.Errorf("error validating CN, expected %s, got %s", CN, cert.Subject.CommonName)}, nil
+	}
+
+	var certSANs []string
+	for _, ip := range cert.IPAddresses {
+		certSANs = append(certSANs, ip.String())
+	}
+	// DNS can be any string value
+	certSANs = append(certSANs, cert.DNSNames...)
+
+	// check if the SANs in the certificate contain the requested SANs
+	// allows for operators to add their own custom SANs in the cert
+	subset := util.Subset(util.StringToInterfaceSlice(SANs), util.StringToInterfaceSlice(certSANs))
+	if !subset {
+		return false, []error{fmt.Errorf("error validating SANs, expected %v, got %v", SANs, certSANs)}, nil
+	}
+
+	return true, nil, nil
+}
+
 func keyName(s string) string { return fmt.Sprintf("%s-key.pem", s) }
 
 func certName(s string) string { return fmt.Sprintf("%s.pem", s) }
