@@ -2,8 +2,10 @@ package tls
 
 import (
 	"bytes"
+	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
@@ -266,6 +268,12 @@ func TestCertKeyPairExistsAndValid(t *testing.T) {
 		},
 	}
 
+	tempDir, err := ioutil.TempDir("", "cert-tests")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer cleanup(tempDir, t)
+
 	// Create CA Cert
 	subject := Subject{
 		Country:            "someCountry",
@@ -290,16 +298,15 @@ func TestCertKeyPairExistsAndValid(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		dir := "/tmp"
 		name := "cert-test-" + strconv.Itoa(i)
-		certPath := "/tmp/" + name + ".pem"
-		keyPath := "/tmp/" + name + "-key.pem"
+		certPath := filepath.Join(tempDir, name+".pem")
+		keyPath := filepath.Join(tempDir, name+"-key.pem")
 		fCert, _ := os.Create(certPath)
 		fCert.Write(cert)
 		fKey, _ := os.Create(keyPath)
 		fKey.Write(key)
 
-		valid, warn, err := CertKeyPairExistsAndValid(test.expectedCN, test.expectedSANs, name, dir)
+		valid, warn, err := CertKeyPairExistsAndValid(test.expectedCN, test.expectedSANs, name, tempDir)
 		if err != nil {
 			t.Errorf("Unexpected error for %d: %v", i, err)
 		}
@@ -326,5 +333,11 @@ func buildReq(CN string, SANs []string) *csr.CertificateRequest {
 				ST: "New York",
 			},
 		},
+	}
+}
+
+func cleanup(dir string, t *testing.T) {
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatalf("failed cleaning up temp directory: %v", err)
 	}
 }
