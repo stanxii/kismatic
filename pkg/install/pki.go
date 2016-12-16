@@ -155,12 +155,16 @@ func (lp *LocalPKI) GenerateNodeCertificate(plan *Plan, node Node, ca *tls.CA) e
 		}
 	}
 
-	// Don't generate if the key pair is already there and its valid
-	valid, warn, err := tls.CertKeyPairExistsAndValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
+	// Don't generate if the key pair exists and valid
+	exists, err := tls.CertKeyPairExists(node.Host, lp.GeneratedCertsDirectory)
+	if err != nil {
+		return fmt.Errorf("error verifying if certificates exists for node %q: %v", node.Host, err)
+	}
+	valid, warn, err := tls.CertValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
 	if err != nil {
 		return fmt.Errorf("error verifying certificates for node %q: %v", node.Host, err)
 	}
-	if valid {
+	if exists && valid {
 		util.PrettyPrintOk(lp.Log, "Found valid key and certificate for node %q", node.Host)
 		return nil
 	}
@@ -187,12 +191,17 @@ func (lp *LocalPKI) generateDockerRegistryCert(p *Plan, ca *tls.CA) error {
 	n := p.Master.Nodes[0]
 	CN := n.Host
 	SANs := []string{n.Host, n.IP, n.InternalIP}
-	// Skip generation if already exist and valid
-	valid, warn, err := tls.CertKeyPairExistsAndValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
+
+	// Don't generate if the key pair exists and valid
+	exists, err := tls.CertKeyPairExists("docker", lp.GeneratedCertsDirectory)
+	if err != nil {
+		return fmt.Errorf("error verifying if certificates exists for docker registry %v", err)
+	}
+	valid, warn, err := tls.CertValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
 	if err != nil {
 		return fmt.Errorf("error verifying certificates for docker registry: %v", err)
 	}
-	if valid {
+	if exists && valid {
 		util.PrettyPrintOk(lp.Log, "Found certificate for docker registry")
 	}
 	// cert doesn't exist or is not valid
@@ -217,11 +226,17 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 	CN := "kube-service-account"
 	SANs := []string{}
 	certName := "service-account"
-	valid, warn, err := tls.CertKeyPairExistsAndValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
+
+	// Don't generate if the key pair exists and valid
+	exists, err := tls.CertKeyPairExists(certName, lp.GeneratedCertsDirectory)
+	if err != nil {
+		return fmt.Errorf("error verifying if certificates exists %q: %v", certName, err)
+	}
+	valid, warn, err := tls.CertValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
 	if err != nil {
 		return fmt.Errorf("error verifying service account certs: %v", err)
 	}
-	if valid {
+	if exists && valid {
 		util.PrettyPrintOk(lp.Log, "Found key and certificate for service accounts")
 		return nil
 	}
@@ -244,11 +259,17 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 
 func (lp *LocalPKI) generateUserCert(p *Plan, user string, ca *tls.CA) error {
 	SANs := []string{user}
-	valid, warn, err := tls.CertKeyPairExistsAndValid(user, SANs, user, lp.GeneratedCertsDirectory)
+
+	// Don't generate if the key pair exists and valid
+	exists, err := tls.CertKeyPairExists(user, lp.GeneratedCertsDirectory)
+	if err != nil {
+		return fmt.Errorf("error verifying if certificates exists for %q: %v", user, err)
+	}
+	valid, warn, err := tls.CertValid(user, SANs, user, lp.GeneratedCertsDirectory)
 	if err != nil {
 		return fmt.Errorf("error verifying user certificates: %v", err)
 	}
-	if valid {
+	if exists && valid {
 		util.PrettyPrintOk(lp.Log, "Found key and certificate for user %q", user)
 		return nil
 	}

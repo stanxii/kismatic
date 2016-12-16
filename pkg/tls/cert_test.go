@@ -135,7 +135,7 @@ func TestGenerateNewCertificate(t *testing.T) {
 
 }
 
-func TestCertKeyPairExistsAndValid(t *testing.T) {
+func TestCertValid(t *testing.T) {
 	tests := []struct {
 		expectedCN   string
 		expectedSANs []string
@@ -293,6 +293,15 @@ func TestCertKeyPairExistsAndValid(t *testing.T) {
 		Profile:    "kubernetes",
 	}
 
+	// check if exists
+	valid, warn, err := CertValid(tests[0].expectedCN, tests[0].expectedSANs, "doesnotexist", tempDir)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if valid != false {
+		t.Errorf("Expected to be false, instead got %t with warning: %v\n", valid, warn)
+	}
+
 	for i, test := range tests {
 		key, cert, err := NewCert(ca, *buildReq(test.certCN, test.certSANs))
 		if err != nil {
@@ -306,7 +315,7 @@ func TestCertKeyPairExistsAndValid(t *testing.T) {
 		fKey, _ := os.Create(keyPath)
 		fKey.Write(key)
 
-		valid, warn, err := CertKeyPairExistsAndValid(test.expectedCN, test.expectedSANs, name, tempDir)
+		valid, warn, err := CertValid(test.expectedCN, test.expectedSANs, name, tempDir)
 		if err != nil {
 			t.Errorf("Unexpected error for %d: %v", i, err)
 		}

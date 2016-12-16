@@ -111,13 +111,16 @@ func CertKeyPairExists(name, dir string) (bool, error) {
 	return true, nil
 }
 
-// CertKeyPairExistsAndValid returns true if a key and matching certificate exist.
-// Matching is defined as having the expected file names and IP Addresse(s)
-func CertKeyPairExistsAndValid(CN string, SANs []string, name, dir string) (valid bool, warn []error, err error) {
-	// check if exists and return if doesn't or error
-	exists, errExists := CertKeyPairExists(name, dir)
-	if !exists || errExists != nil {
-		return exists, nil, errExists
+// CertValid returns true if a matching certificate exist
+// Matching is defined as having the expected CN and SANs
+// A certificate with a wrong CN or that doesn't contain the expected SANs, will return a warning
+func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []error, err error) {
+	// check if cert exists
+	cn := certName(name)
+	if _, err = os.Stat(filepath.Join(dir, cn)); os.IsNotExist(err) {
+		return false, []error{fmt.Errorf("certificate %s does not exist", cn)}, nil
+	} else if err != nil {
+		return false, []error{fmt.Errorf("unexpected error looking for certificate %s", cn)}, nil
 	}
 
 	// read the certificate file
