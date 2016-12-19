@@ -113,14 +113,15 @@ func CertKeyPairExists(name, dir string) (bool, error) {
 
 // CertValid returns true if a matching certificate exist
 // Matching is defined as having the expected CN and SANs
-// A certificate with a wrong CN or that doesn't contain the expected SANs, will return a warning
+// Warnings: a certificate with a wrong CN or that doesn't contain the expected SANs,
+// Error: a file that exists but cannot be read or parsed as a valid certificate
 func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []error, err error) {
 	// check if cert exists
 	cn := certName(name)
 	if _, err = os.Stat(filepath.Join(dir, cn)); os.IsNotExist(err) {
 		return false, []error{fmt.Errorf("certificate %s does not exist", cn)}, nil
 	} else if err != nil {
-		return false, []error{fmt.Errorf("unexpected error looking for certificate %s", cn)}, nil
+		return false, nil, fmt.Errorf("unexpected error looking for certificate %s", cn)
 	}
 
 	// read the certificate file
@@ -132,11 +133,11 @@ func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []e
 	// verify certificate
 	cert, err := helpers.ParseCertificatePEM(certBytes)
 	if err != nil {
-		return false, nil, fmt.Errorf("error parsing cert %s: %v", name, err)
+		return false, []error{fmt.Errorf("error parsing cert %s: %v", name, err)}, nil
 	}
 
 	if cert.Subject.CommonName != CN {
-		return false, []error{fmt.Errorf("error validating CN, expected %s, got %s", CN, cert.Subject.CommonName)}, nil
+		warn = append(warn, fmt.Errorf("error validating CN, expected %s, got %s", CN, cert.Subject.CommonName))
 	}
 
 	var certSANs []string
@@ -150,10 +151,10 @@ func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []e
 	// allows for operators to add their own custom SANs in the cert
 	subset := util.Subset(util.StringToInterfaceSlice(SANs), util.StringToInterfaceSlice(certSANs))
 	if !subset {
-		return false, []error{fmt.Errorf("error validating SANs, expected %v, got %v", SANs, certSANs)}, nil
+		warn = append(warn, fmt.Errorf("error validating SANs, expected %v, got %v", SANs, certSANs))
 	}
 
-	return true, nil, nil
+	return len(warn) == 0, warn, nil
 }
 
 func keyName(s string) string { return fmt.Sprintf("%s-key.pem", s) }
