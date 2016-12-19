@@ -160,17 +160,19 @@ func (lp *LocalPKI) GenerateNodeCertificate(plan *Plan, node Node, ca *tls.CA) e
 	if err != nil {
 		return fmt.Errorf("error verifying if certificates exists for node %q: %v", node.Host, err)
 	}
-	valid, warn, err := tls.CertValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
-	if err != nil {
-		return fmt.Errorf("error verifying certificates for node %q: %v", node.Host, err)
-	}
-	if exists && valid {
-		util.PrettyPrintOk(lp.Log, "Found valid key and certificate for node %q", node.Host)
-		return nil
-	}
-	// cert doesn't exist or is not valid
-	if warn != nil && len(warn) > 0 {
-		util.PrettyPrintOk(lp.Log, "Found key and certificate for node %q but it is not valid: %v", node.Host, warn)
+	if exists {
+		valid, warn, errValid := tls.CertValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
+		if errValid != nil {
+			return fmt.Errorf("error verifying certificates for node %q: %v", node.Host, errValid)
+		}
+		if valid {
+			util.PrettyPrintOk(lp.Log, "Found valid key and certificate for node %q", node.Host)
+			return nil
+		}
+		// cert exists but is not valid
+		if warn != nil && len(warn) > 0 {
+			util.PrettyPrintOk(lp.Log, "Found key and certificate for node %q but it is not valid: %v", node.Host, warn)
+		}
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for host %q", node.Host)
@@ -197,16 +199,18 @@ func (lp *LocalPKI) generateDockerRegistryCert(p *Plan, ca *tls.CA) error {
 	if err != nil {
 		return fmt.Errorf("error verifying if certificates exists for docker registry %v", err)
 	}
-	valid, warn, err := tls.CertValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
-	if err != nil {
-		return fmt.Errorf("error verifying certificates for docker registry: %v", err)
-	}
-	if exists && valid {
-		util.PrettyPrintOk(lp.Log, "Found certificate for docker registry")
-	}
-	// cert doesn't exist or is not valid
-	if warn != nil && len(warn) > 0 {
-		util.PrettyPrintOk(lp.Log, "Found key and certificate for docker registry but it is not valid: %v", warn)
+	if exists {
+		valid, warn, errVaild := tls.CertValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
+		if err != nil {
+			return fmt.Errorf("error verifying certificates for docker registry: %v", errVaild)
+		}
+		if valid {
+			util.PrettyPrintOk(lp.Log, "Found certificate for docker registry")
+		}
+		// cert exists but is not valid
+		if warn != nil && len(warn) > 0 {
+			util.PrettyPrintOk(lp.Log, "Found key and certificate for docker registry but it is not valid: %v", warn)
+		}
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for docker registry")
@@ -232,17 +236,19 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 	if err != nil {
 		return fmt.Errorf("error verifying if certificates exists %q: %v", certName, err)
 	}
-	valid, warn, err := tls.CertValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
-	if err != nil {
-		return fmt.Errorf("error verifying service account certs: %v", err)
-	}
-	if exists && valid {
-		util.PrettyPrintOk(lp.Log, "Found key and certificate for service accounts")
-		return nil
-	}
-	// cert doesn't exist or is not valid
-	if warn != nil && len(warn) > 0 {
-		util.PrettyPrintOk(lp.Log, "Found key and certificate for service account but it is not valid: %v", warn)
+	if exists {
+		valid, warn, errVaild := tls.CertValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
+		if err != nil {
+			return fmt.Errorf("error verifying service account certs: %v", errVaild)
+		}
+		if valid {
+			util.PrettyPrintOk(lp.Log, "Found key and certificate for service accounts")
+			return nil
+		}
+		// cert exists but is not valid
+		if warn != nil && len(warn) > 0 {
+			util.PrettyPrintOk(lp.Log, "Found key and certificate for service account but it is not valid: %v", warn)
+		}
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for service accounts")
@@ -265,17 +271,19 @@ func (lp *LocalPKI) generateUserCert(p *Plan, user string, ca *tls.CA) error {
 	if err != nil {
 		return fmt.Errorf("error verifying if certificates exists for %q: %v", user, err)
 	}
-	valid, warn, err := tls.CertValid(user, SANs, user, lp.GeneratedCertsDirectory)
-	if err != nil {
-		return fmt.Errorf("error verifying user certificates: %v", err)
-	}
-	if exists && valid {
-		util.PrettyPrintOk(lp.Log, "Found key and certificate for user %q", user)
-		return nil
-	}
-	// cert doesn't exist or is not valid
-	if warn != nil && len(warn) > 0 {
-		util.PrettyPrintOk(lp.Log, "Found key and certificate for service account but it is not valid: %v", warn)
+	if exists {
+		valid, warn, errValid := tls.CertValid(user, SANs, user, lp.GeneratedCertsDirectory)
+		if err != nil {
+			return fmt.Errorf("error verifying user certificates: %v", errValid)
+		}
+		if valid {
+			util.PrettyPrintOk(lp.Log, "Found key and certificate for user %q", user)
+			return nil
+		}
+		// cert exists but is not valid
+		if warn != nil && len(warn) > 0 {
+			util.PrettyPrintOk(lp.Log, "Found key and certificate for service account but it is not valid: %v", warn)
+		}
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for user %q", user)
