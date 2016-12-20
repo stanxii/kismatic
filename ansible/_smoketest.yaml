@@ -1,5 +1,5 @@
 ---
-  - hosts: master:!worker
+  - hosts: master
     any_errors_fatal: true
     name: "Smoke test Master Nodes"
     remote_user: root
@@ -7,7 +7,6 @@
     serial: 1
     vars_files:
       - group_vars/all.yaml
-      - group_vars/kubelet-master.yaml
 
     roles:
       - smoketest

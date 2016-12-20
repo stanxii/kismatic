@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apprenda/kismatic/integration/retry"
 	"github.com/apprenda/kismatic/pkg/tls"
 	"github.com/cloudflare/cfssl/csr"
 	. "github.com/onsi/ginkgo"
@@ -19,18 +20,18 @@ import (
 
 const (
 	copyKismaticYumRepo        = `sudo curl https://kismatic-packages-rpm.s3-accelerate.amazonaws.com/kismatic.repo -o /etc/yum.repos.d/kismatic.repo`
-	installEtcdYum             = `sudo yum -y install kismatic-etcd`
-	installDockerEngineYum     = `sudo yum -y install kismatic-docker-engine`
-	installKubernetesMasterYum = `sudo yum -y install kismatic-kubernetes-master`
-	installKubernetesYum       = `sudo yum -y install kismatic-kubernetes-node`
+	installEtcdYum             = `sudo yum -y install kismatic-etcd-1.5.1_1-1`
+	installDockerEngineYum     = `sudo yum -y install kismatic-docker-engine-1.11.2-1.el7.centos`
+	installKubernetesMasterYum = `sudo yum -y install kismatic-kubernetes-master-1.5.1_1-1`
+	installKubernetesYum       = `sudo yum -y install kismatic-kubernetes-node-1.5.1_1-1`
 
 	copyKismaticKeyDeb         = `wget -qO - https://kismatic-packages-deb.s3-accelerate.amazonaws.com/public.key | sudo apt-key add - `
 	copyKismaticRepoDeb        = `sudo add-apt-repository "deb https://kismatic-packages-deb.s3-accelerate.amazonaws.com xenial main"`
 	updateAptGet               = `sudo apt-get update`
-	installEtcdApt             = `sudo apt-get -y install kismatic-etcd`
-	installDockerApt           = `sudo apt-get -y install kismatic-docker-engine`
-	installKubernetesMasterApt = `sudo apt-get -y install kismatic-kubernetes-master`
-	installKubernetesApt       = `sudo apt-get -y install kismatic-kubernetes-node`
+	installEtcdApt             = `sudo apt-get -y install kismatic-etcd=1.5.1-1`
+	installDockerApt           = `sudo apt-get -y install kismatic-docker-engine=1.11.2-0~xenial`
+	installKubernetesMasterApt = `sudo apt-get -y install kismatic-kubernetes-networking=1.5.1-1 kismatic-kubernetes-node=1.5.1-1 kismatic-kubernetes-master=1.5.1-1`
+	installKubernetesApt       = `sudo apt-get -y install kismatic-kubernetes-networking=1.5.1-1 kismatic-kubernetes-node=1.5.1-1`
 )
 
 type nodePrep struct {
@@ -94,27 +95,37 @@ func DownloadKismaticRelease(version string) (string, error) {
 	return tmpDir, nil
 }
 
-func InstallKismaticRPMs(nodes provisionedNodes, distro linuxDistro, sshKey string) {
+func InstallKismaticPackages(nodes provisionedNodes, distro linuxDistro, sshKey string) {
 	prep := getPrepForDistro(distro)
 	By("Configuring package repository")
-	err := runViaSSH(prep.CommandsToPrepRepo, append(append(nodes.etcd, nodes.master...), nodes.worker...), sshKey, 5*time.Minute)
+	err := retry.WithBackoff(func() error {
+		return runViaSSH(prep.CommandsToPrepRepo, append(append(nodes.etcd, nodes.master...), nodes.worker...), sshKey, 5*time.Minute)
+	}, 3)
 	FailIfError(err, "failed to configure package repository over SSH")
 
 	By("Installing Etcd")
-	err = runViaSSH(prep.CommandsToInstallEtcd, nodes.etcd, sshKey, 10*time.Minute)
+	err = retry.WithBackoff(func() error {
+		return runViaSSH(prep.CommandsToInstallEtcd, nodes.etcd, sshKey, 10*time.Minute)
+	}, 3)
 	FailIfError(err, "failed to install Etcd over SSH")
 
 	By("Installing Docker")
 	dockerNodes := append(nodes.master, nodes.worker...)
-	err = runViaSSH(prep.CommandsToInstallDocker, dockerNodes, sshKey, 10*time.Minute)
+	err = retry.WithBackoff(func() error {
+		return runViaSSH(prep.CommandsToInstallDocker, dockerNodes, sshKey, 10*time.Minute)
+	}, 3)
 	FailIfError(err, "failed to install docker over SSH")
 
 	By("Installing Master:")
-	err = runViaSSH(prep.CommandsToInstallK8sMaster, nodes.master, sshKey, 15*time.Minute)
+	err = retry.WithBackoff(func() error {
+		return runViaSSH(prep.CommandsToInstallK8sMaster, nodes.master, sshKey, 15*time.Minute)
+	}, 3)
 	FailIfError(err, "failed to install the master over SSH")
 
 	By("Installing Worker:")
-	err = runViaSSH(prep.CommandsToInstallK8s, nodes.worker, sshKey, 10*time.Minute)
+	err = retry.WithBackoff(func() error {
+		return runViaSSH(prep.CommandsToInstallK8s, nodes.worker, sshKey, 10*time.Minute)
+	}, 3)
 	FailIfError(err, "failed to install the worker over SSH")
 }
 
@@ -143,7 +154,7 @@ func deployDockerRegistry(node NodeDeets, listeningPort int, sshKey string) (str
 		Organization:       "someOrg",
 		OrganizationalUnit: "someOrgUnit",
 	}
-	key, caCert, err := tls.NewCACert("test-tls/ca-csr.json", "someCommonName", subject)
+	key, caCert, err := tls.NewCACert("test-resources/ca-csr.json", "someCommonName", subject)
 	if err != nil {
 		return "", fmt.Errorf("error generating CA cert for Docker: %v", err)
 	}
@@ -155,7 +166,7 @@ func deployDockerRegistry(node NodeDeets, listeningPort int, sshKey string) (str
 	ca := &tls.CA{
 		Key:        key,
 		Cert:       caCert,
-		ConfigFile: "test-tls/ca-config.json",
+		ConfigFile: "test-resources/ca-config.json",
 		Profile:    "kubernetes",
 	}
 	certHosts := []string{node.Hostname, node.PrivateIP, node.PublicIP}
