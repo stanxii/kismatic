@@ -174,7 +174,9 @@ func (lp *LocalPKI) GenerateNodeCertificate(plan *Plan, node Node, ca *tls.CA) e
 		}
 		// cert exists but is not valid
 		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintOk(lp.Log, "Found key and certificate for node %q but it is not valid: %v", node.Host, warn)
+			util.PrettyPrintErr(lp.Log, "Found key and certificate for node %q but it is not valid", node.Host)
+			util.PrintValidationErrors(lp.Log, warn)
+			return fmt.Errorf("error verifying certificates for node %q", node.Host)
 		}
 	}
 
@@ -212,7 +214,9 @@ func (lp *LocalPKI) generateDockerRegistryCert(p *Plan, ca *tls.CA) error {
 		}
 		// cert exists but is not valid
 		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintOk(lp.Log, "Found key and certificate for docker registry but it is not valid: %v", warn)
+			util.PrettyPrintErr(lp.Log, "Found key and certificate for docker registry but it is not valid")
+			util.PrintValidationErrors(lp.Log, warn)
+			return fmt.Errorf("error verifying certificates for docker registry")
 		}
 	}
 
@@ -242,7 +246,7 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 	if exists {
 		valid, warn, errVaild := tls.CertValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
 		if err != nil {
-			return fmt.Errorf("error verifying service account certs: %v", errVaild)
+			return fmt.Errorf("error verifying certificates for service account: %v", errVaild)
 		}
 		if valid {
 			util.PrettyPrintOk(lp.Log, "Found key and certificate for service accounts")
@@ -250,7 +254,9 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 		}
 		// cert exists but is not valid
 		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintOk(lp.Log, "Found key and certificate for service account but it is not valid: %v", warn)
+			util.PrettyPrintErr(lp.Log, "Found key and certificate for service account but it is not valid")
+			util.PrintValidationErrors(lp.Log, warn)
+			return fmt.Errorf("error verifying certificates for service account")
 		}
 	}
 
@@ -285,7 +291,9 @@ func (lp *LocalPKI) generateUserCert(p *Plan, user string, ca *tls.CA) error {
 		}
 		// cert exists but is not valid
 		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintOk(lp.Log, "Found key and certificate for service account but it is not valid: %v", warn)
+			util.PrettyPrintErr(lp.Log, "Found key and certificate for user %q but it is not valid", user)
+			util.PrintValidationErrors(lp.Log, warn)
+			return fmt.Errorf("error verifying certificates for user %q", user)
 		}
 	}
 

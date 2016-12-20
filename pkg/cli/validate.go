@@ -58,7 +58,7 @@ func doValidate(out io.Writer, planner install.Planner, opts *validateOpts) erro
 	ok, errs := install.ValidatePlan(plan)
 	if !ok {
 		util.PrettyPrintErr(out, "Validating installation plan file")
-		printValidationErrors(out, errs)
+		util.PrintValidationErrors(out, errs)
 		return fmt.Errorf("validation error prevents installation from proceeding")
 	}
 	util.PrettyPrintOk(out, "Validating installation plan file")
@@ -67,7 +67,7 @@ func doValidate(out io.Writer, planner install.Planner, opts *validateOpts) erro
 	ok, errs = install.ValidatePlanSSHConnection(plan)
 	if !ok {
 		util.PrettyPrintErr(out, "Validating SSH connections to nodes")
-		printValidationErrors(out, errs)
+		util.PrintValidationErrors(out, errs)
 		return fmt.Errorf("SSH connectivity validation failure prevents installation from proceeding")
 	}
 
@@ -87,10 +87,4 @@ func doValidate(out io.Writer, planner install.Planner, opts *validateOpts) erro
 		return err
 	}
 	return nil
-}
-
-func printValidationErrors(out io.Writer, errors []error) {
-	for _, err := range errors {
-		util.PrintColor(out, util.Red, "- %v\n", err)
-	}
 }

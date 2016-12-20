@@ -137,7 +137,7 @@ func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []e
 	}
 
 	if cert.Subject.CommonName != CN {
-		warn = append(warn, fmt.Errorf("error validating CN, expected %s, got %s", CN, cert.Subject.CommonName))
+		warn = append(warn, fmt.Errorf("error validating CN, expected %q, instead got %q", CN, cert.Subject.CommonName))
 	}
 
 	var certSANs []string
@@ -151,7 +151,7 @@ func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []e
 	// allows for operators to add their own custom SANs in the cert
 	subset := util.Subset(util.StringToInterfaceSlice(SANs), util.StringToInterfaceSlice(certSANs))
 	if !subset {
-		warn = append(warn, fmt.Errorf("error validating SANs, expected %v, got %v", SANs, certSANs))
+		warn = append(warn, fmt.Errorf("error validating SANs, expected: \n\t%v \n  instead got: \n\t%v", SANs, certSANs))
 	}
 
 	return len(warn) == 0, warn, nil
