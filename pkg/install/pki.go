@@ -159,25 +159,18 @@ func (lp *LocalPKI) GenerateNodeCertificate(plan *Plan, node Node, ca *tls.CA) e
 	}
 
 	// Don't generate if the key pair exists and valid
-	exists, err := tls.CertKeyPairExists(node.Host, lp.GeneratedCertsDirectory)
+	valid, warn, err := tls.CertExistsAndValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
 	if err != nil {
-		return fmt.Errorf("error verifying if certificates exists for node %q: %v", node.Host, err)
+		return err
 	}
-	if exists {
-		valid, warn, errValid := tls.CertValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
-		if errValid != nil {
-			return fmt.Errorf("error verifying certificates for node %q: %v", node.Host, errValid)
-		}
-		if valid {
-			util.PrettyPrintOk(lp.Log, "Found valid key and certificate for node %q", node.Host)
-			return nil
-		}
-		// cert exists but is not valid
-		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintErr(lp.Log, "Found key and certificate for node %q but it is not valid", node.Host)
-			util.PrintValidationErrors(lp.Log, warn)
-			return fmt.Errorf("error verifying certificates for node %q", node.Host)
-		}
+	if warn != nil && len(warn) > 0 {
+		util.PrettyPrintErr(lp.Log, "Found key and certificate for node %q but it is not valid", node.Host)
+		util.PrintValidationErrors(lp.Log, warn)
+		return fmt.Errorf("error verifying certificates for node %q", node.Host)
+	}
+	if valid {
+		util.PrettyPrintOk(lp.Log, "Found valid key and certificate for node %q", node.Host)
+		return nil
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for host %q", node.Host)
@@ -200,24 +193,18 @@ func (lp *LocalPKI) generateDockerRegistryCert(p *Plan, ca *tls.CA) error {
 	SANs := []string{n.Host, n.IP, n.InternalIP}
 
 	// Don't generate if the key pair exists and valid
-	exists, err := tls.CertKeyPairExists("docker", lp.GeneratedCertsDirectory)
+	valid, warn, err := tls.CertExistsAndValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
 	if err != nil {
-		return fmt.Errorf("error verifying if certificates exists for docker registry %v", err)
+		return err
 	}
-	if exists {
-		valid, warn, errVaild := tls.CertValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
-		if err != nil {
-			return fmt.Errorf("error verifying certificates for docker registry: %v", errVaild)
-		}
-		if valid {
-			util.PrettyPrintOk(lp.Log, "Found certificate for docker registry")
-		}
-		// cert exists but is not valid
-		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintErr(lp.Log, "Found key and certificate for docker registry but it is not valid")
-			util.PrintValidationErrors(lp.Log, warn)
-			return fmt.Errorf("error verifying certificates for docker registry")
-		}
+	if warn != nil && len(warn) > 0 {
+		util.PrettyPrintErr(lp.Log, "Found key and certificate for docker registry but it is not valid")
+		util.PrintValidationErrors(lp.Log, warn)
+		return fmt.Errorf("error verifying certificates for docker registry")
+	}
+	if valid {
+		util.PrettyPrintOk(lp.Log, "Found certificate for docker registry")
+		return nil
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for docker registry")
@@ -239,25 +226,18 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 	certName := "service-account"
 
 	// Don't generate if the key pair exists and valid
-	exists, err := tls.CertKeyPairExists(certName, lp.GeneratedCertsDirectory)
+	valid, warn, err := tls.CertExistsAndValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
 	if err != nil {
-		return fmt.Errorf("error verifying if certificates exists %q: %v", certName, err)
+		return err
 	}
-	if exists {
-		valid, warn, errVaild := tls.CertValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
-		if err != nil {
-			return fmt.Errorf("error verifying certificates for service account: %v", errVaild)
-		}
-		if valid {
-			util.PrettyPrintOk(lp.Log, "Found key and certificate for service accounts")
-			return nil
-		}
-		// cert exists but is not valid
-		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintErr(lp.Log, "Found key and certificate for service account but it is not valid")
-			util.PrintValidationErrors(lp.Log, warn)
-			return fmt.Errorf("error verifying certificates for service account")
-		}
+	if warn != nil && len(warn) > 0 {
+		util.PrettyPrintErr(lp.Log, "Found key and certificate for service account but it is not valid")
+		util.PrintValidationErrors(lp.Log, warn)
+		return fmt.Errorf("error verifying certificates for service account")
+	}
+	if valid {
+		util.PrettyPrintOk(lp.Log, "Found key and certificate for service accounts")
+		return nil
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for service accounts")
@@ -276,25 +256,18 @@ func (lp *LocalPKI) generateUserCert(p *Plan, user string, ca *tls.CA) error {
 	SANs := []string{user}
 
 	// Don't generate if the key pair exists and valid
-	exists, err := tls.CertKeyPairExists(user, lp.GeneratedCertsDirectory)
+	valid, warn, err := tls.CertExistsAndValid(user, SANs, user, lp.GeneratedCertsDirectory)
 	if err != nil {
-		return fmt.Errorf("error verifying if certificates exists for %q: %v", user, err)
+		return err
 	}
-	if exists {
-		valid, warn, errValid := tls.CertValid(user, SANs, user, lp.GeneratedCertsDirectory)
-		if err != nil {
-			return fmt.Errorf("error verifying user certificates: %v", errValid)
-		}
-		if valid {
-			util.PrettyPrintOk(lp.Log, "Found key and certificate for user %q", user)
-			return nil
-		}
-		// cert exists but is not valid
-		if warn != nil && len(warn) > 0 {
-			util.PrettyPrintErr(lp.Log, "Found key and certificate for user %q but it is not valid", user)
-			util.PrintValidationErrors(lp.Log, warn)
-			return fmt.Errorf("error verifying certificates for user %q", user)
-		}
+	if warn != nil && len(warn) > 0 {
+		util.PrettyPrintErr(lp.Log, "Found key and certificate for user %q but it is not valid", user)
+		util.PrintValidationErrors(lp.Log, warn)
+		return fmt.Errorf("error verifying certificates for user %q", user)
+	}
+	if valid {
+		util.PrettyPrintOk(lp.Log, "Found key and certificate for user %q", user)
+		return nil
 	}
 
 	util.PrettyPrintOk(lp.Log, "Generating certificates for user %q", user)

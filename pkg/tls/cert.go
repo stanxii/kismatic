@@ -157,6 +157,28 @@ func CertValid(CN string, SANs []string, name, dir string) (valid bool, warn []e
 	return len(warn) == 0, warn, nil
 }
 
+// CertExistsAndValid verifies that the cert exists and the CN and SANs match the expected values
+func CertExistsAndValid(CN string, SANs []string, name, dir string) (valid bool, warn []error, err error) {
+	exists, err := CertKeyPairExists(name, dir)
+	if err != nil {
+		return false, nil, fmt.Errorf("error verifying if certificates %q exists: %v", name, err)
+	}
+	if exists {
+		valid, warn, errValid := CertValid(CN, SANs, name, dir)
+		if errValid != nil {
+			return false, nil, fmt.Errorf("error validating certificate %q: %v", name, errValid)
+		}
+		// cert valid
+		if valid {
+			return true, nil, nil
+		}
+		// cert exists but is not valid
+		return false, warn, nil
+	}
+	// cert doesn't exist
+	return false, nil, nil
+}
+
 func keyName(s string) string { return fmt.Sprintf("%s-key.pem", s) }
 
 func certName(s string) string { return fmt.Sprintf("%s.pem", s) }
