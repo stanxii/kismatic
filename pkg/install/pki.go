@@ -140,6 +140,57 @@ func (lp *LocalPKI) GenerateClusterCertificates(p *Plan, ca *tls.CA, users []str
 	return nil
 }
 
+// ValidateClusterCertificates validates all certificates in the cluster
+func (lp *LocalPKI) ValidateClusterCertificates(p *Plan, users []string) (warn []error, err []error) {
+	if lp.Log == nil {
+		lp.Log = ioutil.Discard
+	}
+	nodes := []Node{}
+	nodes = append(nodes, p.Etcd.Nodes...)
+	nodes = append(nodes, p.Master.Nodes...)
+	nodes = append(nodes, p.Worker.Nodes...)
+	if p.Ingress.Nodes != nil {
+		nodes = append(nodes, p.Ingress.Nodes...)
+	}
+
+	seenNodes := map[string]bool{}
+	for _, n := range nodes {
+		// Only generate certs once for each node, nodes can be in more than one group
+		if _, ok := seenNodes[n.Host]; ok {
+			continue
+		}
+		seenNodes[n.Host] = true
+		_, nodeWarn, nodeErr := lp.validateNodeCertificate(p, n)
+		warn = append(warn, nodeWarn...)
+		if err != nil {
+			err = append(err, nodeErr)
+		}
+	}
+	// Create certs for docker registry if it's missing
+	if p.DockerRegistry.SetupInternal {
+		_, dockerWarn, dockerErr := lp.validateDockerRegistryCert(p)
+		warn = append(warn, dockerWarn...)
+		if err != nil {
+			err = append(err, dockerErr)
+		}
+	}
+	// Create key for service account signing
+	_, saWarn, saErr := lp.validateServiceAccountCert(p)
+	warn = append(warn, saWarn...)
+	if err != nil {
+		err = append(err, saErr)
+	}
+	// Finally, create certs for user if they are missing
+	for _, user := range users {
+		_, userWarn, userErr := lp.validateUserCert(p, user)
+		warn = append(warn, userWarn...)
+		if err != nil {
+			err = append(err, userErr)
+		}
+	}
+	return warn, err
+}
+
 // GenerateNodeCertificate creates a private key and certificate for the given node
 func (lp *LocalPKI) GenerateNodeCertificate(plan *Plan, node Node, ca *tls.CA) error {
 	CN := node.Host
@@ -186,6 +237,26 @@ func (lp *LocalPKI) GenerateNodeCertificate(plan *Plan, node Node, ca *tls.CA) e
 	return nil
 }
 
+func (lp *LocalPKI) validateNodeCertificate(p *Plan, node Node) (valid bool, warn []error, err error) {
+	CN := node.Host
+	// Build list of SANs
+	clusterSANs, err := clusterCertsSubjectAlternateNames(p)
+	if err != nil {
+		return false, nil, err
+	}
+	nodeSANs := append(clusterSANs, node.Host, node.IP, node.InternalIP)
+	if isMasterNode(*p, node) {
+		if p.Master.LoadBalancedFQDN != "" {
+			nodeSANs = append(nodeSANs, p.Master.LoadBalancedFQDN)
+		}
+		if p.Master.LoadBalancedShortName != "" {
+			nodeSANs = append(nodeSANs, p.Master.LoadBalancedShortName)
+		}
+	}
+
+	return tls.CertExistsAndValid(CN, nodeSANs, node.Host, lp.GeneratedCertsDirectory)
+}
+
 func (lp *LocalPKI) generateDockerRegistryCert(p *Plan, ca *tls.CA) error {
 	// Default registry will be deployed on the first master
 	n := p.Master.Nodes[0]
@@ -220,6 +291,15 @@ func (lp *LocalPKI) generateDockerRegistryCert(p *Plan, ca *tls.CA) error {
 	return nil
 }
 
+func (lp *LocalPKI) validateDockerRegistryCert(p *Plan) (valid bool, warn []error, err error) {
+	// Default registry will be deployed on the first master
+	n := p.Master.Nodes[0]
+	CN := n.Host
+	SANs := []string{n.Host, n.IP, n.InternalIP}
+
+	return tls.CertExistsAndValid(CN, SANs, "docker", lp.GeneratedCertsDirectory)
+}
+
 func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 	CN := "kube-service-account"
 	SANs := []string{}
@@ -252,6 +332,14 @@ func (lp *LocalPKI) generateServiceAccountCert(p *Plan, ca *tls.CA) error {
 	return nil
 }
 
+func (lp *LocalPKI) validateServiceAccountCert(p *Plan) (valid bool, warn []error, err error) {
+	CN := "kube-service-account"
+	SANs := []string{}
+	certName := "service-account"
+
+	return tls.CertExistsAndValid(CN, SANs, certName, lp.GeneratedCertsDirectory)
+}
+
 func (lp *LocalPKI) generateUserCert(p *Plan, user string, ca *tls.CA) error {
 	SANs := []string{user}
 
@@ -281,6 +369,12 @@ func (lp *LocalPKI) generateUserCert(p *Plan, user string, ca *tls.CA) error {
 		return fmt.Errorf("error writing cert files for user %q: %v", user, err)
 	}
 	return nil
+}
+
+func (lp *LocalPKI) validateUserCert(p *Plan, user string) (valid bool, warn []error, err error) {
+	SANs := []string{user}
+
+	return tls.CertExistsAndValid(user, SANs, user, lp.GeneratedCertsDirectory)
 }
 
 func generateCert(cnName string, p *Plan, hostList []string, ca *tls.CA) (key, cert []byte, err error) {
