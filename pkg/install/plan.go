@@ -27,10 +27,16 @@ type ClusterAddressReader interface {
 	GetClusterAddress(*Plan) (string, error)
 }
 
+// ClusterDashboardURLReader is capable of returning the cluster dashboard URL
+type ClusterDashboardURLReader interface {
+	GetDashboardURL(*Plan) (string, error)
+}
+
 // Planner is used to plan the installation
 type Planner interface {
 	PlanReadWriter
 	ClusterAddressReader
+	ClusterDashboardURLReader
 	PlanExists() bool
 }
 
@@ -100,6 +106,15 @@ func (fp *FilePlanner) GetClusterAddress(p *Plan) (string, error) {
 	}
 
 	return "", fmt.Errorf("load balanced FQDN is not provided")
+}
+
+// GetDashboardURL returns the dashboard url, reading the plan file LoadBalancedFQDN
+func (fp *FilePlanner) GetDashboardURL(p *Plan) (string, error) {
+	ip, err := fp.GetClusterAddress(p)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("https://admin:%s@%s:6443/ui", p.Cluster.AdminPassword, ip), nil
 }
 
 // WritePlanTemplate writes an installation plan with pre-filled defaults.

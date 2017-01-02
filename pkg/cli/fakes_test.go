@@ -12,6 +12,8 @@ type fakePlanner struct {
 	readCalled        bool
 	clusterAddress    string
 	clusterAddressErr error
+	dashboardURL      string
+	dashboardURLErr   error
 }
 
 func (fp *fakePlanner) PlanExists() bool { return fp.exists }
@@ -25,6 +27,9 @@ func (fp *fakePlanner) Write(p *install.Plan) error {
 }
 func (fp *fakePlanner) GetClusterAddress(p *install.Plan) (string, error) {
 	return fp.clusterAddress, fp.clusterAddressErr
+}
+func (fp *fakePlanner) GetDashboardURL(p *install.Plan) (string, error) {
+	return fp.dashboardURL, fp.dashboardURLErr
 }
 
 type fakeExecutor struct {
