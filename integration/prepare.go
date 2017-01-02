@@ -20,7 +20,7 @@ import (
 
 const (
 	copyKismaticYumRepo        = `sudo curl https://kismatic-packages-rpm.s3-accelerate.amazonaws.com/kismatic.repo -o /etc/yum.repos.d/kismatic.repo`
-	installEtcdYum             = `sudo yum -y install kismatic-etcd-1.5.1_1-3`
+	installEtcdYum             = `sudo yum -y install kismatic-etcd-1.5.1_3-1`
 	installDockerEngineYum     = `sudo yum -y install kismatic-docker-engine-1.11.2-1.el7.centos`
 	installKubernetesMasterYum = `sudo yum -y install kismatic-kubernetes-master-1.5.1_3-1`
 	installKubernetesYum       = `sudo yum -y install kismatic-kubernetes-node-1.5.1_3-1`
