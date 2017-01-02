@@ -22,9 +22,15 @@ type PlanReadWriter interface {
 	Write(*Plan) error
 }
 
+// ClusterAddressReader is capable of returning the cluster address
+type ClusterAddressReader interface {
+	GetClusterAddress(*Plan) (string, error)
+}
+
 // Planner is used to plan the installation
 type Planner interface {
 	PlanReadWriter
+	ClusterAddressReader
 	PlanExists() bool
 }
 
@@ -85,6 +91,15 @@ func (fp *FilePlanner) Write(p *Plan) error {
 func (fp *FilePlanner) PlanExists() bool {
 	_, err := os.Stat(fp.File)
 	return !os.IsNotExist(err)
+}
+
+// GetClusterAddress returns the LoadBalancedFQDN IP of the cluster
+func (fp *FilePlanner) GetClusterAddress(p *Plan) (string, error) {
+	if p != nil && p.Master.LoadBalancedFQDN != "" {
+		return p.Master.LoadBalancedFQDN, nil
+	}
+
+	return "", fmt.Errorf("load balanced FQDN is not provided")
 }
 
 // WritePlanTemplate writes an installation plan with pre-filled defaults.

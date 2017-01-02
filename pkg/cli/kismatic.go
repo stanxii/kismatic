@@ -11,7 +11,7 @@ func NewKismaticCommand(version string, in io.Reader, out io.Writer) (*cobra.Com
 	cmd := &cobra.Command{
 		Use:   "kismatic",
 		Short: "kismatic is the main tool for managing your Kubernetes cluster",
-		Long: `kismatic is the main tool for managing your Kubernetes cluster  
+		Long: `kismatic is the main tool for managing your Kubernetes cluster
 more documentation is availble at https://github.com/apprenda/kismatic`,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Help()
@@ -22,6 +22,7 @@ more documentation is availble at https://github.com/apprenda/kismatic`,
 
 	cmd.AddCommand(NewCmdVersion(version, out))
 	cmd.AddCommand(NewCmdInstall(in, out))
+	cmd.AddCommand(NewCmdIP(out))
 
 	return cmd, nil
 }
