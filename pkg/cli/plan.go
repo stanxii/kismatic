@@ -26,6 +26,23 @@ func NewCmdPlan(in io.Reader, out io.Writer, options *installOpts) *cobra.Comman
 	return cmd
 }
 
+// NewCmdPlan creates a new install plan command
+func NewCmdPlanForm(in io.Reader, out io.Writer, options *installOpts) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "plan-form",
+		Short: "experimental forms based plan",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("Unexpected args: %v", args)
+			}
+			planner := &install.FilePlanner{File: options.planFilename}
+			return doPlanForm(in, out, planner, options.planFilename)
+		},
+	}
+
+	return cmd
+}
+
 func doPlan(in io.Reader, out io.Writer, planner install.Planner, planFile string) error {
 	fmt.Fprintln(out, "Plan your Kubernetes cluster:")
 
@@ -73,7 +90,13 @@ func doPlan(in io.Reader, out io.Writer, planner install.Planner, planFile strin
 		return fmt.Errorf("error planning installation: %v", err)
 	}
 
-	fmt.Fprintf(out, "Edit the file to further describe your cluster. Once ready, execute the \"install validate\" command to proceed\n")
+	fmt.Fprintf(out, "Edit the file to further describe your cluster. Once ready, execute the \"install validate \" command to proceed\n")
+
+	return nil
+}
+
+func doPlanForm(in io.Reader, out io.Writer, planner install.Planner, planFile string) error {
+	PaintPlanForm(out, planner, planFile)
 
 	return nil
 }
