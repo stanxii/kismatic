@@ -36,23 +36,32 @@ func ValidateNode(node *Node) (bool, []error) {
 	return v.valid()
 }
 
-// ValidatePlanSSHConnection tries to establish SSH connections to all nodes in the cluster
-func ValidatePlanSSHConnection(p *Plan) (bool, []error) {
+// ValidatePlanSSHConnections tries to establish SSH connections to all nodes in the cluster
+func ValidatePlanSSHConnections(p *Plan) (bool, []error) {
 	v := newValidator()
 
-	v.validateWithErrPrefix("Etcd nodes", &SSHConnection{&p.Cluster.SSH, p.Etcd.Nodes})
-	v.validateWithErrPrefix("Master nodes", &SSHConnection{&p.Cluster.SSH, p.Master.Nodes})
-	v.validateWithErrPrefix("Worker nodes", &SSHConnection{&p.Cluster.SSH, p.Worker.Nodes})
-	v.validateWithErrPrefix("Ingress nodes", &SSHConnection{&p.Cluster.SSH, p.Ingress.Nodes})
+	v.validateWithErrPrefix("Etcd nodes", &SSHConnections{&p.Cluster.SSH, p.Etcd.Nodes, 3})
+	v.validateWithErrPrefix("Master nodes", &SSHConnections{&p.Cluster.SSH, p.Master.Nodes, 3})
+	v.validateWithErrPrefix("Worker nodes", &SSHConnections{&p.Cluster.SSH, p.Worker.Nodes, 3})
+	v.validateWithErrPrefix("Ingress nodes", &SSHConnections{&p.Cluster.SSH, p.Ingress.Nodes, 3})
 
 	return v.valid()
 }
 
-// ValidateSSHConnection tries to establish SSH connection with the details provieded
-func ValidateSSHConnection(con *SSHConnection, prefix string) (bool, []error) {
+// ValidateSSHConnections tries to establish SSH connection with the details provieded for multiple nodes
+func ValidateSSHConnections(con *SSHConnections, prefix string) (bool, []error) {
 	v := newValidator()
 
 	v.validateWithErrPrefix(prefix, con)
+
+	return v.valid()
+}
+
+// ValidateSSHConnection tries to establish SSH connection with the details provieded for a single node
+func ValidateSSHConnection(con *SSHConnection, prefix string) (bool, []error) {
+	v := newValidator()
+
+	v.validateWithErrPrefix(prefix, &SSHConnections{con.SSHConfig, []Node{*con.Node}, con.Retries})
 
 	return v.valid()
 }
@@ -63,11 +72,6 @@ type validatable interface {
 
 type validator struct {
 	errs []error
-}
-
-type SSHConnection struct {
-	SSHConfig *SSHConfig
-	Nodes     []Node
 }
 
 func newValidator() *validator {
@@ -184,7 +188,7 @@ func (s *SSHConfig) validate() (bool, []error) {
 }
 
 // validate SSH access to the nodes
-func (s *SSHConnection) validate() (bool, []error) {
+func (s *SSHConnections) validate() (bool, []error) {
 	v := newValidator()
 
 	auth, err := util.GetUnencryptedPublicKeyAuth(s.SSHConfig.Key)
@@ -204,7 +208,7 @@ func (s *SSHConnection) validate() (bool, []error) {
 		for _, node := range s.Nodes {
 			go func(node Node) {
 				defer wg.Done()
-				sshErr := retry.WithBackoff(func() error { return verifySSH(&node, s.SSHConfig, sshClientConfig) }, 3)
+				sshErr := retry.WithBackoff(func() error { return verifySSH(&node, s.SSHConfig, sshClientConfig) }, s.Retries)
 				// Need to send something the buffered channel
 				if sshErr != nil {
 					errQueue <- fmt.Errorf("SSH connectivity validation failed for %q: %v", node.IP, sshErr)

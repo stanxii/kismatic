@@ -1,5 +1,15 @@
 package install
 
+import "fmt"
+
+// SSHDetails is an interface to allow to SSH into nodes
+type SSHDetails interface {
+	GetSSHAddress()
+	GetSSHPort()
+	GetSSHKeyPath()
+	GetSSHUsername()
+}
+
 // NetworkConfig describes the cluster's networking configuration
 type NetworkConfig struct {
 	Type             string
@@ -71,4 +81,57 @@ type Plan struct {
 	Master         MasterNodeGroup
 	Worker         NodeGroup
 	Ingress        OptionalNodeGroup
+}
+
+type SSHConnections struct {
+	SSHConfig *SSHConfig
+	Nodes     []Node
+	Retries   uint
+}
+
+type SSHConnection struct {
+	SSHConfig *SSHConfig
+	Node      *Node
+	Retries   uint
+}
+
+// GetSSHConnection returns the SSHConnection struct containing the node and SSHConfig details
+func (p *Plan) GetSSHConnection(host string) (*SSHConnection, error) {
+	nodes := []Node{}
+	nodes = append(nodes, p.Etcd.Nodes...)
+	nodes = append(nodes, p.Master.Nodes...)
+	nodes = append(nodes, p.Worker.Nodes...)
+	if p.Ingress.Nodes != nil {
+		nodes = append(nodes, p.Ingress.Nodes...)
+	}
+	// try to find the node with the provided hostname
+	var foundNode *Node
+	for _, node := range nodes {
+		if node.Host == host {
+			foundNode = &node
+			break
+		}
+	}
+
+	if foundNode == nil {
+		return nil, fmt.Errorf("node %q not found in the plan", host)
+	}
+
+	return &SSHConnection{&p.Cluster.SSH, foundNode, 1}, nil
+}
+
+func (ssh *SSHConnection) GetSSHAddress() string {
+	return ssh.Node.IP
+}
+
+func (ssh *SSHConnection) GetSSHPort() int {
+	return ssh.SSHConfig.Port
+}
+
+func (ssh *SSHConnection) GetSSHKeyPath() string {
+	return ssh.SSHConfig.Key
+}
+
+func (ssh *SSHConnection) GetSSHUsername() string {
+	return ssh.SSHConfig.User
 }
