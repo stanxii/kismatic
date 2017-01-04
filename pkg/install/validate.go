@@ -208,7 +208,7 @@ func (s *SSHConnections) validate() (bool, []error) {
 		for _, node := range s.Nodes {
 			go func(node Node) {
 				defer wg.Done()
-				sshErr := retry.WithBackoff(func() error { return verifySSH(&node, s.SSHConfig, sshClientConfig) }, s.Retries)
+				sshErr := retry.Linear(func() error { return verifySSH(&node, s.SSHConfig, sshClientConfig) }, s.Retries)
 				// Need to send something the buffered channel
 				if sshErr != nil {
 					errQueue <- fmt.Errorf("SSH connectivity validation failed for %q: %v", node.IP, sshErr)
