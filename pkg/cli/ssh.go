@@ -83,12 +83,10 @@ func doSSH(out io.Writer, planner install.Planner, opts *sshOpts) error {
 }
 
 func createSSHClient(con *install.SSHConnection) (ssh.Client, error) {
+	user := con.GetSSHUsername()
 	addr := con.GetSSHAddress()
 	port := con.GetSSHPort()
-	auth := &ssh.Auth{}
-	if con.GetSSHKeyPath() != "" {
-		auth.Keys = []string{con.GetSSHKeyPath()}
-	}
+	auth := &ssh.Auth{Keys: []string{con.GetSSHKeyPath()}}
 
-	return ssh.NewClient(con.GetSSHUsername(), addr, port, auth)
+	return ssh.NewClient(user, addr, port, auth)
 }
